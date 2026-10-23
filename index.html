@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Income statement</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #17202a; background: #f7f8fa; }
+    body { max-width: 780px; margin: 32px auto; padding: 0 18px; }
+    main { background: white; border: 1px solid #dce1e6; border-radius: 8px; padding: 28px; }
+    h1 { margin: 0 0 6px; font-size: 1.65rem; }
+    form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 24px 0; }
+    label { display: grid; gap: 5px; font-weight: 600; }
+    input, button { font: inherit; padding: 8px; }
+    button { cursor: pointer; background: #184f71; color: white; border: 0; border-radius: 4px; padding: 10px 16px; }
+    #message { min-height: 1.5em; color: #9b2226; }
+    .period { color: #52606d; margin: 0 0 18px; }
+    table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+    th, td { padding: 8px 4px; border-bottom: 1px solid #e7ebef; }
+    th { text-align: left; background: #f1f4f6; padding-top: 18px; }
+    td:last-child, th:last-child { text-align: right; }
+    .account td:first-child { padding-left: 18px; }
+    .subtotal td, .total td { font-weight: 700; border-top: 1px solid #a8b3bd; }
+    .final td { font-weight: 800; border-top: 2px solid #17202a; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="company">Income statement</h1>
+    <form id="dates">
+      <label>Start date <input id="start" type="date" value="2026-01-01" required></label>
+      <label>End date <input id="end" type="date" value="2026-03-31" required></label>
+      <button type="submit">Show statement</button>
+    </form>
+    <p id="message" role="status" aria-live="polite"></p>
+    <div id="report" hidden>
+      <p class="period" id="period"></p>
+      <table aria-label="Income statement"><thead><tr><th scope="col">Account</th><th scope="col">Amount</th></tr></thead><tbody id="lines"></tbody></table>
+    </div>
+  </main>
+  <script>
+    const form = document.querySelector('#dates');
+    const message = document.querySelector('#message');
+    const report = document.querySelector('#report');
+    const lines = document.querySelector('#lines');
+
+    function amount(value, currency) {
+      const negative = value.startsWith('-');
+      const [whole, cents] = (negative ? value.slice(1) : value).split('.');
+      const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      const displayed = `${grouped}.${cents}`;
+      return `${currency} ${negative ? `(${displayed})` : displayed}`;
+    }
+
+    function row(label, value, currency, className) {
+      const tr = document.createElement('tr');
+      tr.className = className;
+      const name = document.createElement('td');
+      const sum = document.createElement('td');
+      name.textContent = label;
+      sum.textContent = amount(value, currency);
+      tr.append(name, sum);
+      lines.append(tr);
+    }
+
+    function render(data) {
+      document.querySelector('#company').textContent = `${data.company} — Income statement`;
+      document.querySelector('#period').textContent = `${data.start} through ${data.end} · ${data.currency}`;
+      lines.replaceChildren();
+      for (const section of data.sections) {
+        const heading = document.createElement('tr');
+        const title = document.createElement('th');
+        title.scope = 'rowgroup';
+        title.colSpan = 2;
+        title.textContent = section.label;
+        heading.append(title);
+        lines.append(heading);
+        for (const account of section.accounts) {
+          row(`${account.number}  ${account.name}`, account.amount, data.currency, 'account');
+        }
+        row(`Total ${section.label}`, section.subtotal, data.currency, 'subtotal');
+        if (section.key === 'cogs') row('Gross profit', data.gross_profit, data.currency, 'total');
+        if (section.key === 'operating_expenses') row('Operating income', data.operating_income, data.currency, 'total');
+      }
+      row('Net income', data.net_income, data.currency, 'final');
+      report.hidden = false;
+    }
+
+    async function refresh(event) {
+      event?.preventDefault();
+      message.textContent = 'Loading…';
+      report.hidden = true;
+      try {
+        const params = new URLSearchParams({
+          start: document.querySelector('#start').value,
+          end: document.querySelector('#end').value
+        });
+        const response = await fetch(`/income-statement?${params}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Unable to load statement');
+        render(data);
+        message.textContent = '';
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    }
+    form.addEventListener('submit', refresh);
+    refresh();
+  </script>
+</body>
+</html>
