@@ -1,5 +1,30 @@
 # Take-home: an income statement
 
+## Run this implementation
+
+Requires Python 3.10 or newer; developed and tested with Python 3.14.0 on macOS.
+It uses only Python's standard library, so there is nothing to install.
+
+```sh
+python3 app.py
+```
+
+Open <http://127.0.0.1:8000/> for the frontend. The same process serves the backend API:
+
+```sh
+curl 'http://127.0.0.1:8000/income-statement?start=2026-01-01&end=2026-03-31'
+```
+
+Run the tests from the repository root:
+
+```sh
+python3 -m unittest -v
+```
+
+Use `PORT=8001 python3 app.py` if port 8000 is occupied. The API returns account and
+subtotal amounts as signed, two-decimal strings; the browser formats negative amounts
+in parentheses. See [NOTES.md](NOTES.md) for accounting decisions and verification.
+
 | | |
 | --- | --- |
 | Track | Full-stack, backend, product-leaning |
